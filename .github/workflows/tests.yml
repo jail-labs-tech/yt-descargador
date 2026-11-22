@@ -12,3 +12,45 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m unittest -v
+  installers:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: install.sh (instalar, actualizar, desinstalar)
+        if: runner.os != 'Windows'
+        run: |
+          set -eu
+          sh -n install.sh
+          t="$RUNNER_TEMP/ctd"; mkdir -p "$t"
+          git archive --prefix=contenido-a-tu-disco-main/ HEAD | gzip > "$t/src.tgz"
+          export CTD_SOURCE="$t/src.tgz" CTD_HOME="$t/home" CTD_BIN="$t/bin" CTD_APPS="$t/apps" CTD_SKIP_DEPS=1 CTD_NO_OPEN=1
+          sh install.sh
+          test -f "$CTD_HOME/app.py"; test -d "$CTD_HOME/static"; test -x "$CTD_BIN/contenido-a-tu-disco"
+          if [ "$RUNNER_OS" = macOS ]; then test -x "$CTD_APPS/Contenido a tu disco.app/Contents/MacOS/contenido-a-tu-disco"; fi
+          echo hola > "$CTD_HOME/descargador.log"
+          sh install.sh
+          test "$(cat "$CTD_HOME/descargador.log")" = hola; test -f "$CTD_HOME/app.py"
+          sh install.sh --uninstall
+          test ! -e "$CTD_HOME"; test ! -e "$CTD_BIN/contenido-a-tu-disco"; test ! -e "$CTD_APPS/Contenido a tu disco.app"
+      - name: install.ps1 y uninstall.ps1 (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $t = Join-Path $env:RUNNER_TEMP 'ctd'
+          git checkout-index -a --prefix="$t/pkg/contenido-a-tu-disco-main/"
+          Compress-Archive -Path "$t/pkg/contenido-a-tu-disco-main" -DestinationPath "$t/src.zip"
+          $env:CTD_SOURCE = "$t/src.zip"; $env:CTD_HOME = "$t/home"; $env:CTD_SKIP_DEPS = '1'; $env:CTD_NO_OPEN = '1'
+          $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Contenido a tu disco.lnk'
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          if ($LASTEXITCODE -ne 0) { throw 'install.ps1 fallo' }
+          if (-not ((Test-Path "$t/home/app.py") -and (Test-Path "$t/home/static") -and (Test-Path $lnk))) { throw 'faltan archivos o el acceso directo' }
+          Set-Content "$t/home/descargador.log" 'hola'
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          if ($LASTEXITCODE -ne 0) { throw 'la actualizacion fallo' }
+          if ((Get-Content "$t/home/descargador.log") -ne 'hola') { throw 'se perdio descargador.log' }
+          Get-Content -Raw uninstall.ps1 | Invoke-Expression
+          if ((Test-Path "$t/home") -or (Test-Path $lnk)) { throw 'uninstall no borro todo' }

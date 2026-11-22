@@ -13,7 +13,41 @@ Página web local para bajar audio (MP3) o video (MP4). Funciona con YouTube y c
 - Hasta 3 descargas a la vez; el resto espera en cola.
 - Servidor de un solo archivo de Python (`app.py`) más la página en `static/` (HTML, CSS y JS), sin dependencias de pip.
 
-## Uso
+## Instalar
+
+**Mac o Linux:** abre la app Terminal, pega esto y pulsa Enter:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.sh | sh
+```
+
+En Mac instala lo que falte (te pedirá tu contraseña la primera vez), crea el ícono **Contenido a tu disco** en tu carpeta Aplicaciones (`~/Applications`) y abre la app. En Linux no instala nada por su cuenta: si falta Python, ffmpeg o yt-dlp, te imprime el comando exacto.
+
+**Windows:** solo hay que pegar un comando una vez.
+
+1. Pulsa la tecla Windows, escribe `PowerShell` y pulsa Enter.
+2. En la ventana azul que se abre, copia el comando de abajo, haz clic derecho dentro de la ventana (se pega solo) y pulsa Enter.
+3. Espera a que termine (puede tardar unos minutos la primera vez). La app se abre sola.
+
+```powershell
+irm https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.ps1 | iex
+```
+
+**Abrirla después:** doble clic en el ícono **Contenido a tu disco** (en el Escritorio y el menú Inicio en Windows; en Aplicaciones en Mac). En Mac y Linux también sirve el comando `contenido-a-tu-disco`.
+
+**Actualizar:** vuelve a pegar el mismo comando de instalación. Conserva tu `descargador.log`.
+
+**Desinstalar** (no quita Python, yt-dlp ni ffmpeg):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.sh | sh -s -- --uninstall
+```
+
+```powershell
+irm https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/uninstall.ps1 | iex
+```
+
+## Instalación manual
 
 **Mac:** doble clic en `iniciar-mac.command` (la primera vez: clic derecho → Abrir).
 **Windows:** doble clic en `iniciar-windows.bat`.
