@@ -21,21 +21,24 @@ Página web local para bajar audio (MP3) o video (MP4). Funciona con YouTube y c
 curl -fsSL https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.sh | sh
 ```
 
-En Mac instala lo que falte (te pedirá tu contraseña la primera vez), crea el ícono **Contenido a tu disco** en tu carpeta Aplicaciones (`~/Applications`) y abre la app. En Linux no instala nada por su cuenta: si falta Python, ffmpeg o yt-dlp, te imprime el comando exacto.
+En Mac instala lo que falte (te pedirá tu contraseña la primera vez), crea el ícono **Contenido a tu disco** y abre la app; después lo encuentras con Spotlight (Cmd+Espacio y escribe "Contenido") o en Launchpad. En Linux no instala nada por su cuenta: si falta Python, ffmpeg o yt-dlp, te imprime el comando exacto.
 
 **Windows:** solo hay que pegar un comando una vez.
 
 1. Pulsa la tecla Windows, escribe `PowerShell` y pulsa Enter.
-2. En la ventana azul que se abre, copia el comando de abajo, haz clic derecho dentro de la ventana (se pega solo) y pulsa Enter.
-3. Espera a que termine (puede tardar unos minutos la primera vez). La app se abre sola.
+2. En la ventana que se abre, pega este comando (clic derecho dentro de la ventana, o Ctrl+V) y pulsa Enter:
 
-```powershell
-irm https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.ps1 | iex
-```
+   ```powershell
+   irm https://raw.githubusercontent.com/jail-labs-tech/contenido-a-tu-disco/main/install.ps1 | iex
+   ```
+
+3. Espera a que termine (la primera vez puede tardar unos minutos). Si Windows pregunta "¿Quieres permitir que esta aplicación haga cambios?", pulsa **Sí**.
+
+Al terminar se abre la app, junto con una ventana negra: no la cierres mientras uses la app.
 
 **Abrirla después:** doble clic en el ícono **Contenido a tu disco** (en el Escritorio y el menú Inicio en Windows; en Aplicaciones en Mac). En Mac y Linux también sirve el comando `contenido-a-tu-disco`.
 
-**Actualizar:** vuelve a pegar el mismo comando de instalación. Conserva tu `descargador.log`.
+**Actualizar:** cierra la app (si está abierta) y vuelve a pegar el mismo comando de instalación. Conserva tu `descargador.log`.
 
 **Desinstalar** (no quita Python, yt-dlp ni ffmpeg):
 

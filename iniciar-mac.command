@@ -3,6 +3,9 @@
 cd "$(dirname "$0")"
 ok() { "$@" >/dev/null 2>&1; }
 
+# Una Terminal nueva no trae brew en el PATH en Mac con Apple Silicon: cargarlo antes de decidir.
+for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)" && break; done
+
 if ! ok brew --version; then
   echo "Instalando Homebrew (te pedirá tu contraseña)..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || exit 1

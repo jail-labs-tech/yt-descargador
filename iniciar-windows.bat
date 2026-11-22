@@ -3,6 +3,10 @@ rem Doble clic: revisa/instala Python, yt-dlp y ffmpeg con winget y abre Conteni
 chcp 65001 >nul
 cd /d "%~dp0"
 
+rem El "python" falso de Microsoft Store (WindowsApps) no sirve: preferimos el Python real.
+set "PYD=%LOCALAPPDATA%\Programs\Python\Python312"
+if exist "%PYD%\python.exe" set "PATH=%PYD%;%PYD%\Scripts;%PATH%"
+
 where winget >nul 2>&1
 if errorlevel 1 (
   echo No encontre winget. Instala "App Installer" desde Microsoft Store y vuelve a abrir este archivo.
@@ -34,7 +38,7 @@ if not errorlevel 1 (
   exit /b
 )
 echo Instalando %1...
-winget install -e --id %3 --accept-source-agreements --accept-package-agreements
+winget install -e --source winget --id %3 --accept-source-agreements --accept-package-agreements
 call :refresh
 %1 %~2 >nul 2>&1
 if errorlevel 1 (
@@ -47,4 +51,5 @@ exit /b
 :refresh
 rem winget cambia el PATH en el registro, no en esta ventana: lo recargamos.
 for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path','Machine')+';'+[Environment]::GetEnvironmentVariable('Path','User')"`) do set "PATH=%%p"
+if exist "%PYD%\python.exe" set "PATH=%PYD%;%PYD%\Scripts;%PATH%"
 exit /b

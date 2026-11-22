@@ -29,11 +29,28 @@ main() {
   good() { printf '   ✓ %s\n' "$*"; }
   die()  { printf '\n✗ %s\n' "$*" >&2; exit 1; }
   have() { "$@" >/dev/null 2>&1; }
+  # texto entre comillas simples, seguro para meter en un script generado
+  q()    { e=$(printf '%s' "$1" | sed "s/'/'\\\\''/g"); printf "'%s'" "$e"; }
+
+  # Guardas: solo se borra una carpeta que ya sea una instalacion nuestra (tiene app.py)
+  # o que no exista / este vacia. Nunca "/" ni el HOME, aunque lleguen como "$HOME/" o "$HOME/.".
+  [ -n "$DEST" ] || die "CTD_HOME esta vacio."
+  if [ -d "$DEST" ]; then
+    R=$(cd "$DEST" && pwd -P) || die "No puedo entrar a $DEST"
+    HR=$(cd "$HOME" && pwd -P) || HR=$HOME
+    case "$R" in /|"$HR") die "Ruta de instalacion no segura: $DEST ($R). No borre nada." ;; esac
+    DEST=$R
+    if [ ! -f "$DEST/app.py" ]; then
+      if [ "${1:-}" = "--uninstall" ] || [ -n "$(ls -A "$DEST")" ]; then
+        die "$DEST no parece una instalacion de Contenido a tu disco (no tiene app.py). No borre nada."
+      fi
+    fi
+  fi
 
   if [ "${1:-}" = "--uninstall" ]; then
-    case "$DEST" in ""|/|"$HOME") die "Ruta de instalacion no segura: '$DEST'" ;; esac
     say "Desinstalando Contenido a tu disco..."
     rm -rf "$DEST" "$CMD" "$APP"
+    [ ! -e "$DEST" ] || die "No pude borrar $DEST. Cierra la app y vuelve a intentarlo."
     good "Borrado $DEST, el comando y la app."
     say "No se desinstalaron yt-dlp, ffmpeg ni Python (puede que los uses para otras cosas)."
     return 0
@@ -70,21 +87,25 @@ main() {
 
   # ---- 3. Instalar (reemplaza la app, conserva descargador.log) ----
   step "Instalando en $DEST"
-  case "$DEST" in ""|/|"$HOME") die "Ruta de instalacion no segura: '$DEST'" ;; esac
+  if [ -f "$DEST/app.py" ] && port_busy; then
+    say "   ! La app parece estar abierta. Cierrala (cierra su ventana de Terminal) y vuelve a abrirla despues para usar la version nueva."
+  fi
   mkdir -p "$DEST"
   find "$DEST" -mindepth 1 -maxdepth 1 ! -name descargador.log -exec rm -rf {} +
   rm -f "$TMP/x/descargador.log"
   cp -R "$TMP/x/." "$DEST/"
   chmod +x "$DEST/iniciar-mac.command" 2>/dev/null || true
+  [ -f "$DEST/app.py" ] && [ -d "$DEST/static" ] ||
+    die "La copia fallo: no encuentro app.py y static en $DEST. Vuelve a pegar el comando."
   good "Archivos listos"
 
   # ---- 4. Comando de terminal ----
   step "Creando el comando contenido-a-tu-disco"
   mkdir -p "$BIN"
   if [ "$OS" = "Darwin" ]; then
-    printf '#!/bin/sh\nexec bash "%s/iniciar-mac.command"\n' "$DEST" > "$CMD"
+    printf '#!/bin/sh\nexec bash %s\n' "$(q "$DEST/iniciar-mac.command")" > "$CMD"
   else
-    printf '#!/bin/sh\ncd "%s" && exec python3 app.py\n' "$DEST" > "$CMD"
+    printf '#!/bin/sh\ncd %s && exec python3 app.py\n' "$(q "$DEST")" > "$CMD"
   fi
   chmod +x "$CMD"
   good "$CMD"
@@ -114,7 +135,7 @@ main() {
 </dict>
 </plist>
 PLIST
-    printf '#!/bin/sh\nexec open "%s/iniciar-mac.command"\n' "$DEST" > "$APP/Contents/MacOS/contenido-a-tu-disco"
+    printf '#!/bin/sh\nexec open %s\n' "$(q "$DEST/iniciar-mac.command")" > "$APP/Contents/MacOS/contenido-a-tu-disco"
     chmod +x "$APP/Contents/MacOS/contenido-a-tu-disco"
     good "$APP"
   fi
@@ -134,6 +155,12 @@ PLIST
     say "Abriendo la app..."
     open "$APP"
   fi
+}
+
+port_busy() {
+  if have lsof -v; then lsof -nP -iTCP:8765 -sTCP:LISTEN >/dev/null 2>&1
+  elif have nc -h; then nc -z 127.0.0.1 8765 >/dev/null 2>&1
+  else return 1; fi
 }
 
 deps_mac() {
@@ -171,12 +198,14 @@ deps_linux() {
   if [ -z "$missing" ]; then good "python3, ffmpeg y yt-dlp"; return 0; fi
   say "   Falta:$missing"
   say "   Instalalo con el comando de tu distribucion y vuelve a pegar el de instalacion:"
-  if have apt-get --version; then say "     sudo apt install python3 python3-pip ffmpeg"
-  elif have dnf --version; then say "     sudo dnf install python3 python3-pip ffmpeg-free"
-  elif have pacman --version; then say "     sudo pacman -S python python-pip ffmpeg"
+  if have apt-get --version; then say "     sudo apt install python3 ffmpeg"
+  elif have dnf --version; then say "     sudo dnf install python3 ffmpeg-free"
+  elif have pacman --version; then say "     sudo pacman -S python ffmpeg"
   else say "     (instala python3 y ffmpeg con el gestor de paquetes de tu distribucion)"; fi
   case "$missing" in *yt-dlp*)
-    say "     python3 -m pip install --user -U yt-dlp     (o: pipx install yt-dlp)" ;;
+    say "   Para yt-dlp (pip --user falla en Ubuntu 23.04+ y Debian 12), usa el binario oficial:"
+    say "     mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp && chmod +x ~/.local/bin/yt-dlp"
+    say "   o bien: pipx install yt-dlp" ;;
   esac
   die "Faltan dependencias; no uso sudo por mi cuenta."
 }
