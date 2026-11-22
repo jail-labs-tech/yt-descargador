@@ -7,7 +7,7 @@
 #   CTD_SOURCE=ruta     tarball local (.tar.gz) en lugar de descargarlo
 #   CTD_HOME=ruta       carpeta de instalacion (por defecto ~/.contenido-a-tu-disco)
 #   CTD_BIN=ruta        carpeta del comando (por defecto ~/.local/bin)
-#   CTD_APPS=ruta       carpeta de la .app en Mac (por defecto ~/Applications)
+#   CTD_APPS=ruta       carpeta de la .app en Mac (por defecto /Applications si se puede escribir, si no ~/Applications)
 #   CTD_SKIP_DEPS=1     no revisa ni instala Python, yt-dlp ni ffmpeg
 #   CTD_NO_OPEN=1       no abre la app al terminar
 #
@@ -18,9 +18,14 @@ main() {
   TGZ_URL="https://codeload.github.com/jail-labs-tech/contenido-a-tu-disco/tar.gz/refs/heads/main"
   DEST=${CTD_HOME:-$HOME/.contenido-a-tu-disco}
   BIN=${CTD_BIN:-$HOME/.local/bin}
-  APPS=${CTD_APPS:-$HOME/Applications}
+  # /Applications si se puede escribir (Spotlight y Launchpad siempre la ven); si no, ~/Applications
+  if [ -n "${CTD_APPS:-}" ]; then APPS=$CTD_APPS
+  elif [ -d /Applications ] && [ -w /Applications ]; then APPS=/Applications
+  else APPS=$HOME/Applications; fi
   CMD="$BIN/contenido-a-tu-disco"
   APP="$APPS/Contenido a tu disco.app"
+  OLDAPP="$HOME/Applications/Contenido a tu disco.app"  # ubicacion de versiones anteriores
+  [ -z "${CTD_APPS:-}" ] || OLDAPP=$APP
   OS=$(uname -s)
   N=0
 
@@ -52,7 +57,7 @@ main() {
 
   if [ "${1:-}" = "--uninstall" ]; then
     say "Desinstalando Contenido a tu disco..."
-    rm -rf "$DEST" "$CMD" "$APP"
+    rm -rf "$DEST" "$CMD" "$APP" "$OLDAPP"
     [ ! -e "$DEST" ] || die "No pude borrar $DEST. Cierra la app y vuelve a intentarlo."
     good "Borrado $DEST, el comando y la app."
     say "No se desinstalaron yt-dlp, ffmpeg ni Python (puede que los uses para otras cosas)."
@@ -123,6 +128,7 @@ main() {
   if [ "$OS" = "Darwin" ]; then
     step "Creando el icono en Aplicaciones"
     rm -rf "$APP"
+    [ "$OLDAPP" = "$APP" ] || rm -rf "$OLDAPP"
     mkdir -p "$APP/Contents/MacOS"
     # ponytail: sin icono grafico (icono generico de app); se puede agregar un .icns despues.
     cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -141,13 +147,14 @@ main() {
 PLIST
     printf '#!/bin/sh\nexec open %s\n' "$(q "$DEST/iniciar-mac.command")" > "$APP/Contents/MacOS/contenido-a-tu-disco"
     chmod +x "$APP/Contents/MacOS/contenido-a-tu-disco"
+    mdimport "$APP" >/dev/null 2>&1 || true  # que Spotlight la vea ya
     good "$APP"
   fi
 
   say ""
   say "¡Listo! Contenido a tu disco quedó instalado."
   if [ "$OS" = "Darwin" ]; then
-    say "  Abrir:         el icono \"Contenido a tu disco\" en $APPS, o el comando: contenido-a-tu-disco"
+    say "  Abrir:         Cmd+Espacio y escribe \"Contenido\" (o en Launchpad / $APPS), o el comando: contenido-a-tu-disco"
   else
     say "  Abrir:         contenido-a-tu-disco   (luego entra a http://localhost:8765)"
   fi
