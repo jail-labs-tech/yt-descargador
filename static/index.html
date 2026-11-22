@@ -1,0 +1,91 @@
+<!doctype html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Descargador de YouTube</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&display=swap">
+<link rel="stylesheet" href="/styles.css">
+<div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+<main>
+<div class="tag in"><b></b>Corre en tu equipo</div>
+<h1 class="in" style="--i:1">YouTube,<br><em>a tu disco.</em></h1>
+<p class="sub in" style="--i:2">Pega un enlace, elige audio o video y se guarda en tu equipo.</p>
+<div class="dep" id="dep" role="alert" hidden></div>
+<form class="card in" id="f" style="--i:3" novalidate>
+ <label for="u">Enlaces de video</label>
+ <div class="field">
+  <textarea id="u" rows="3" autocomplete="off" spellcheck="false" placeholder="Pega enlaces de videos o de listas de reproducción, uno por línea" autofocus></textarea>
+  <button type="button" class="paste" id="p" aria-label="Pegar enlaces desde el portapapeles"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>Pegar</button>
+ </div>
+ <fieldset>
+  <legend>Formato</legend>
+  <div class="seg">
+   <label><input type="radio" name="fmt" value="mp3" checked><span class="tile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><b>MP3</b><small>Solo audio</small><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></span></label>
+   <label><input type="radio" name="fmt" value="mp4"><span class="tile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 11h16v9H4z"/><path d="M3.5 6.8l16.2-2.9.8 4.4L4.3 11.2z"/><path d="M8.6 5.9l2.4 3.8M13.8 5l2.4 3.8"/></svg></span><b>MP4</b><small>Video con audio</small><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></span></label>
+  </div>
+ </fieldset>
+ <fieldset class="qf">
+  <legend>Calidad</legend>
+  <div class="q" id="q"></div>
+  <p class="hint" id="hint"></p>
+ </fieldset>
+ <button class="go" id="g" type="submit"><span id="gl">Descargar</span><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg></button>
+ <p class="hint" id="kb">Ctrl o Cmd + Enter para descargar. Cada enlace es una descarga independiente. Con una lista de reproducción eliges qué videos bajar.</p>
+ <span class="sr" id="live" role="status" aria-live="polite"></span>
+</form>
+<section id="dls" hidden>
+ <h2>Descargas</h2>
+ <ul id="list"></ul>
+</section>
+<section id="help" aria-labelledby="hh">
+ <h2 id="hh">Problemas frecuentes</h2>
+ <details id="falta-ffmpeg"><summary>No se pudo instalar o no encuentro ffmpeg</summary>
+  <div class="hb">
+   <p>ffmpeg es el programa que convierte a MP3 y une el video con el audio. Descárgalo desde <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">ffmpeg.org/download.html</a> o instálalo con un comando:</p>
+   <div class="cmd"><span class="os">Mac</span><code>brew install ffmpeg</code><button type="button" class="cp" aria-label="Copiar comando para Mac: brew install ffmpeg">Copiar</button></div>
+   <div class="cmd"><span class="os">Windows</span><code>winget install -e --id Gyan.FFmpeg</code><button type="button" class="cp" aria-label="Copiar comando para Windows: winget install -e --id Gyan.FFmpeg">Copiar</button></div>
+   <div class="cmd"><span class="os">Linux</span><code>sudo apt install ffmpeg</code><button type="button" class="cp" aria-label="Copiar comando para Linux: sudo apt install ffmpeg">Copiar</button></div>
+   <p class="note">Después cierra el descargador y vuelve a abrirlo.</p>
+  </div>
+ </details>
+ <details id="falta-ytdlp"><summary>No encuentro yt-dlp</summary>
+  <div class="hb">
+   <p>yt-dlp es el programa que baja el video de YouTube. Mira las <a href="https://github.com/yt-dlp/yt-dlp#installation" target="_blank" rel="noopener">instrucciones oficiales</a> o usa un comando:</p>
+   <div class="cmd"><span class="os">Mac</span><code>brew install yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Mac: brew install yt-dlp">Copiar</button></div>
+   <div class="cmd"><span class="os">Windows</span><code>winget install -e --id yt-dlp.yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Windows: winget install -e --id yt-dlp.yt-dlp">Copiar</button></div>
+   <div class="cmd"><span class="os">Cualquiera</span><code>python3 -m pip install -U yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Cualquiera: python3 -m pip install -U yt-dlp">Copiar</button></div>
+   <p class="note">Después cierra el descargador y vuelve a abrirlo.</p>
+  </div>
+ </details>
+ <details id="bot"><summary>YouTube pide iniciar sesión o confirmar la edad</summary>
+  <div class="hb">
+   <p>La app reintenta sola con las cookies del navegador donde abriste esta página, así que necesitas tener la sesión de YouTube iniciada ahí.</p>
+   <p>Detecta Chrome, Edge, Firefox, Safari y Opera. Brave y otros navegadores se ven como Chrome y puede fallar, así que mejor abre esta página en uno de los detectados.</p>
+  </div>
+ </details>
+ <details id="cookies"><summary>No pude leer las cookies del navegador</summary>
+  <div class="hb">
+   <p>Depende del navegador y del sistema:</p>
+   <ul>
+    <li><b>Mac, Chrome o Edge:</b> piden la contraseña del llavero. Elige &laquo;Permitir siempre&raquo;.</li>
+    <li><b>Mac, Safari:</b> dale a Terminal &laquo;Acceso total al disco&raquo; en Ajustes del Sistema, Privacidad y seguridad.</li>
+    <li><b>Windows, Chrome o Edge:</b> ciérralos del todo, porque bloquean el archivo de cookies.</li>
+    <li><b>Firefox:</b> suele funcionar sin pasos extra.</li>
+   </ul>
+  </div>
+ </details>
+ <details id="actualizar"><summary>YouTube rechazó la descarga</summary>
+  <div class="hb">
+   <p>YouTube cambia seguido y yt-dlp necesita estar al día. Actualízalo:</p>
+   <div class="cmd"><span class="os">Mac</span><code>brew upgrade yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Mac: brew upgrade yt-dlp">Copiar</button></div>
+   <div class="cmd"><span class="os">Windows</span><code>winget upgrade yt-dlp.yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Windows: winget upgrade yt-dlp.yt-dlp">Copiar</button></div>
+   <div class="cmd"><span class="os">Otros</span><code>yt-dlp -U</code><button type="button" class="cp" aria-label="Copiar comando para Otros: yt-dlp -U">Copiar</button></div>
+  </div>
+ </details>
+</section>
+</main>
+<template id="ic-eq"><div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div></template>
+<template id="ic-ok"><div class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div></template>
+<template id="ic-x"><div class="xb" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div></template>
+<template id="x-ic"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></template>
+<script src="/app.js"></script></html>

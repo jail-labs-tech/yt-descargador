@@ -4,3 +4,4 @@ __pycache__/
 graft/
 .trail/
 descargador.log
+.playwright-cli/

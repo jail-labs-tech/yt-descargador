@@ -5,8 +5,9 @@ Página web local para bajar audio o video de YouTube. Corre en tu máquina: el 
 - Pega uno o varios enlaces (uno por línea); cada uno es una descarga con su propia tarjeta de progreso.
 - MP3: Máxima (VBR), 320, 192 o 128 kbps.
 - MP4: Máxima, 1080p, 720p, 480p o 360p, siempre en H.264 + AAC para que abra en cualquier reproductor.
+- Playlists: pega el enlace de una lista y eliges qué videos bajar (tope de 500 videos); los Mix automáticos de YouTube (`list=RD...`) se bajan como video suelto.
 - Hasta 3 descargas a la vez; el resto espera en cola.
-- Un solo archivo de Python, sin dependencias de pip.
+- Servidor de un solo archivo de Python (`app.py`) más la página en `static/` (HTML, CSS y JS), sin dependencias de pip.
 
 ## Uso
 
@@ -21,7 +22,11 @@ Ambos revisan e instalan lo que falte (Python, [yt-dlp](https://github.com/yt-dl
 python3 app.py
 ```
 
+Si YouTube pide iniciar sesión para un video ("confirma que no eres un bot" o restricción de edad), la app reintenta una vez con las cookies del navegador en el que abriste la página; para que funcione tienes que tener sesión de YouTube iniciada ahí. En Mac, el navegador puede pedirte la contraseña del llavero.
+
 Si YouTube empieza a fallar, casi siempre se arregla actualizando yt-dlp (`brew upgrade yt-dlp`, `winget upgrade yt-dlp.yt-dlp` o `yt-dlp -U`).
+
+Los errores se explican en la página y se guardan en `descargador.log` (junto a `app.py`), junto con los avisos de lo que falte instalar.
 
 ## Seguridad
 
@@ -30,7 +35,7 @@ El servidor solo escucha en `127.0.0.1` y rechaza peticiones cuyo `Host`/`Origin
 ## Pruebas
 
 ```sh
-python3 -m unittest -v          # sin red, con un yt-dlp falso (se saltan en Windows)
+python3 -m unittest -v          # sin red, con un yt-dlp falso (también en Windows)
 YT_REAL=1 python3 -m unittest   # además descarga un video real corto
 ```
 
