@@ -7,9 +7,17 @@
 <link rel="stylesheet" href="/styles.css">
 <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <main>
+<header class="hero">
 <div class="tag in"><b></b>Sin anuncios · Corre en tu equipo</div>
 <h1 class="in" style="--i:1">Contenido,<br><em>a tu disco.</em></h1>
 <p class="sub in" style="--i:2">Pega un enlace de YouTube, TikTok, Instagram, X y más de 1.800 sitios, elige audio o video y se guarda en tu equipo, sin anuncios.</p>
+<ul class="pts in" style="--i:3">
+ <li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Sin cuentas ni registros</li>
+ <li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>MP3, MP4 y Mix con recorte</li>
+ <li><svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Corre en tu equipo</li>
+</ul>
+</header>
+<div class="app">
 <div class="dep" id="dep" role="alert" hidden></div>
 <form class="card in" id="f" style="--i:3" novalidate>
  <label for="u">Enlaces</label>
@@ -103,7 +111,7 @@
    </ul>
   </div>
  </details>
- <details id="actualizar"><summary>YouTube rechazó la descarga</summary>
+ <details id="actualizar"><summary>El sitio rechazó la descarga</summary>
   <div class="hb">
    <p>YouTube cambia seguido y yt-dlp necesita estar al día. Actualízalo:</p>
    <div class="cmd"><span class="os">Mac</span><code>brew upgrade yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Mac: brew upgrade yt-dlp">Copiar</button></div>
@@ -117,6 +125,7 @@
   </div>
  </details>
 </section>
+</div>
 </main>
 <template id="ic-eq"><div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div></template>
 <template id="ic-ok"><div class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div></template>

@@ -12,7 +12,7 @@ body{margin:0;min-height:100dvh;color:var(--ink);font:16px/1.5 system-ui,-apple-
 @keyframes d2{to{transform:translate(-14vmax,8vmax) scale(.9)}}
 @keyframes d3{to{transform:translate(10vmax,-8vmax) scale(1.2)}}
 .bg::after{content:"";position:absolute;inset:0;opacity:.16;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-main{max-width:640px;margin:0 auto;padding:clamp(28px,9vh,88px) 16px 56px}
+main{max-width:920px;margin:0 auto;padding:clamp(28px,9vh,88px) clamp(16px,4vw,32px) 56px}
 .in{animation:up .7s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i,0)*90ms)}
 @keyframes up{from{opacity:0;transform:translateY(18px)}}
 .tag{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:var(--glass);font-size:.8125rem;font-weight:600;letter-spacing:.02em;backdrop-filter:blur(10px)}
@@ -20,7 +20,7 @@ main{max-width:640px;margin:0 auto;padding:clamp(28px,9vh,88px) 16px 56px}
 h1{font:800 clamp(2.9rem,11.5vw,5.2rem)/.95 var(--disp);letter-spacing:-.045em;margin:18px 0 14px}
 h1 em{font-style:normal;display:inline-block;background:linear-gradient(100deg,#a78bfa,#f472b6 55%,#fb923c);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.08em}
 @media(prefers-color-scheme:light){h1 em{background-image:linear-gradient(100deg,#6d28d9,#db2777 55%,#c2410c);-webkit-background-clip:text;background-clip:text}}
-.sub{margin:0 0 28px;color:var(--mute);font-size:1.0625rem;max-width:34ch}
+.sub{margin:0 0 28px;color:var(--mute);font-size:1.0625rem;max-width:52ch}
 .card{background:var(--glass);border:1px solid var(--line);border-radius:28px;padding:24px;box-shadow:var(--sh);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4)}
 @media(max-width:440px){.card{padding:16px;border-radius:24px}}
 label,legend{display:block;font-size:.8125rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:0 0 10px;padding:0}
@@ -224,3 +224,51 @@ fieldset.mixp{margin-top:20px}
 }
 .retry.add{display:flex;width:100%;justify-content:center;margin:12px 0 0}
 .mixp:focus-visible{outline-offset:6px;border-radius:12px}
+
+/* Ancho de escritorio: el flujo sigue vertical, solo se aprovecha el ancho */
+.hint,.mixe{max-width:72ch}
+.hb p,.hb li{max-width:72ch}
+fieldset.cut .cuts{max-width:440px}
+@media(min-width:600px){
+ .card{padding:32px}
+ .tile{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:14px;align-items:center;align-content:center;min-height:0;padding:14px 16px}
+ .tile .ico{grid-row:1/span 3;width:48px;height:48px;margin:0}
+ .tile .cnt{justify-self:start;margin-top:6px}
+ .tick{right:10px;top:10px}
+ .tile{height:100%}
+ .mr-a .pl-btn{min-width:72px}
+ .pl-row{grid-template-columns:auto 128px minmax(0,1fr);gap:14px;min-height:72px;padding:10px 14px;font-size:1rem}
+ .pl-list{max-height:min(60vh,520px)}
+ .mr{grid-template-columns:32px minmax(0,1fr) auto;align-items:end}
+ .mr-n{align-self:start}
+ .mr .mr-t{grid-column:2/-1;align-self:center}
+ .mr .cuts{grid-column:2;max-width:320px}
+ .mr .mr-a{grid-column:3;grid-template-columns:repeat(3,auto)}
+ .mr .hint{grid-column:2/-1}
+}
+@media(min-width:900px){
+}
+@media(min-width:900px) and (max-width:1199px){
+ .mr{grid-template-columns:32px minmax(0,1fr) 260px auto;gap:12px 16px;align-items:end}
+ .mr-n{align-self:center}
+ .mr .mr-t{grid-column:2;align-self:center}
+ .mr .cuts{grid-column:3;max-width:none}
+ .mr .mr-a{grid-column:4}
+ .mr .hint{grid-column:2/-1}
+ #help{display:grid;grid-auto-flow:dense;grid-template-columns:1fr 1fr;gap:8px 12px;align-items:start}
+ #help h2{grid-column:1/-1;margin-bottom:4px}
+ #help details{margin-top:0}
+ #help details[open]{grid-column:1/-1}
+}
+/* Pantalla ancha: hero a la izquierda (sticky), descargador a la derecha */
+.pts{display:none}
+@media(min-width:1200px){
+ main{max-width:1320px;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);column-gap:clamp(48px,6vw,104px);align-items:start;padding-inline:clamp(32px,4vw,64px)}
+ .hero{position:sticky;top:clamp(24px,calc(50vh - 260px),160px);container-type:inline-size}
+ h1{font-size:clamp(3rem,21cqi,6rem)}
+ .pts{display:grid;gap:10px;list-style:none;margin:32px 0 0;padding:0;color:var(--mute);font-size:.9375rem}
+ .pts li{display:flex;align-items:center;gap:10px}
+ .pts .ic{width:18px;height:18px;stroke-width:2.6;color:var(--okc)}
+ .sub{margin-bottom:0}
+}
+@media(min-width:1200px) and (max-height:640px){.hero{position:static}}
