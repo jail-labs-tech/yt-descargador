@@ -1,11 +1,15 @@
-# Descargador de YouTube (MP3 / MP4)
+# Contenido a tu disco
 
-Página web local para bajar audio o video de YouTube. Corre en tu máquina: el archivo lo descarga tu navegador y el servidor borra su copia temporal en cuanto la entrega (o al cerrarlo). La única petición externa además de YouTube es la tipografía de Google Fonts.
+**Sin anuncios:** corre en tu equipo, sin ads ni páginas llenas de pop-ups.
 
-- Pega uno o varios enlaces (uno por línea); cada uno es una descarga con su propia tarjeta de progreso.
+Página web local para bajar audio (MP3) o video (MP4). Funciona con YouTube y con los más de 1.800 sitios que soporta [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) (TikTok, Instagram, X, Vimeo, SoundCloud, Twitch, Facebook, etc.). Los servicios con DRM (Netflix, Spotify, Disney+, Prime Video) no funcionan. El archivo lo descarga tu navegador y el servidor borra su copia temporal en cuanto la entrega (o al cerrarlo). La única petición externa además del sitio de origen es la tipografía de Google Fonts.
+
+- Pega uno o varios enlaces (uno por línea); cada uno es una descarga con su propia tarjeta de progreso. En sitios que no son YouTube se baja un solo elemento por enlace.
+- Recorte: puedes bajar solo un tramo indicando desde y hasta (en segundos). En video el corte es exacto, por eso tarda un poco más (recodifica el tramo).
 - MP3: Máxima (VBR), 320, 192 o 128 kbps.
 - MP4: Máxima, 1080p, 720p, 480p o 360p, siempre en H.264 + AAC para que abra en cualquier reproductor.
-- Playlists: pega el enlace de una lista y eliges qué videos bajar (tope de 500 videos); los Mix automáticos de YouTube (`list=RD...`) se bajan como video suelto.
+- Playlists (solo YouTube): pega el enlace de una lista y eliges qué videos bajar (tope de 500 videos); los Mix automáticos de YouTube (`list=RD...`) se bajan como video suelto.
+- Mix: une varias canciones en un solo MP3, con recorte por pista y fundido cruzado de 0 a 10 s (hasta 50 pistas; ocupa un cupo de descarga).
 - Hasta 3 descargas a la vez; el resto espera en cola.
 - Servidor de un solo archivo de Python (`app.py`) más la página en `static/` (HTML, CSS y JS), sin dependencias de pip.
 
@@ -14,7 +18,7 @@ Página web local para bajar audio o video de YouTube. Corre en tu máquina: el 
 **Mac:** doble clic en `iniciar-mac.command` (la primera vez: clic derecho → Abrir).
 **Windows:** doble clic en `iniciar-windows.bat`.
 
-Ambos revisan e instalan lo que falte (Python, [yt-dlp](https://github.com/yt-dlp/yt-dlp), [ffmpeg](https://ffmpeg.org)) con Homebrew o winget, actualizan yt-dlp y abren http://localhost:8765.
+Ambos revisan e instalan lo que falte (Python, [yt-dlp](https://github.com/yt-dlp/yt-dlp), [ffmpeg](https://ffmpeg.org)) con Homebrew o winget, actualizan yt-dlp (en Mac y en Windows) y abren http://localhost:8765.
 
 **Manual (cualquier sistema):** instala Python 3.8+, yt-dlp y ffmpeg, y corre:
 
@@ -22,15 +26,15 @@ Ambos revisan e instalan lo que falte (Python, [yt-dlp](https://github.com/yt-dl
 python3 app.py
 ```
 
-Si YouTube pide iniciar sesión para un video ("confirma que no eres un bot" o restricción de edad), la app reintenta una vez con las cookies del navegador en el que abriste la página; para que funcione tienes que tener sesión de YouTube iniciada ahí. En Mac, el navegador puede pedirte la contraseña del llavero.
+Si el sitio pide iniciar sesión ("confirma que no eres un bot", restricción de edad, contenido solo para usuarios registrados), la app reintenta una vez con las cookies del navegador en el que abriste la página; para que funcione tienes que tener sesión iniciada ahí en ese sitio. En Mac, el navegador puede pedirte la contraseña del llavero.
 
-Si YouTube empieza a fallar, casi siempre se arregla actualizando yt-dlp (`brew upgrade yt-dlp`, `winget upgrade yt-dlp.yt-dlp` o `yt-dlp -U`).
+Si un sitio empieza a fallar, casi siempre se arregla actualizando yt-dlp (`brew upgrade yt-dlp`, `winget upgrade yt-dlp.yt-dlp` o `yt-dlp -U`).
 
 Los errores se explican en la página y se guardan en `descargador.log` (junto a `app.py`), junto con los avisos de lo que falte instalar.
 
 ## Seguridad
 
-El servidor solo escucha en `127.0.0.1` y rechaza peticiones cuyo `Host`/`Origin` no sea la propia página, para que otro sitio abierto en tu navegador no pueda usarlo. Solo acepta enlaces de dominios de YouTube y llama a yt-dlp sin shell.
+El servidor solo escucha en `127.0.0.1` y rechaza peticiones cuyo `Host`/`Origin` no sea la propia página, para que otro sitio abierto en tu navegador no pueda usarlo. Acepta cualquier enlace `http` o `https` (rechaza `file:`, `ftp:`, etc.) y llama a yt-dlp sin shell y con `--` antes de la URL, para que un enlace nunca se interprete como opción.
 
 ## Pruebas
 

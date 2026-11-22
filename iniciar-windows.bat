@@ -1,5 +1,5 @@
 @echo off
-rem Doble clic: revisa/instala Python, yt-dlp y ffmpeg con winget y abre el descargador.
+rem Doble clic: revisa/instala Python, yt-dlp y ffmpeg con winget y abre Contenido a tu disco.
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -14,8 +14,14 @@ call :check python "-c pass" Python.Python.3.12
 call :check yt-dlp "--version" yt-dlp.yt-dlp
 call :check ffmpeg "-version" Gyan.FFmpeg
 
-echo Actualizando yt-dlp (YouTube cambia seguido)...
-yt-dlp -U
+echo Actualizando yt-dlp (los sitios cambian seguido)...
+winget list -e --id yt-dlp.yt-dlp --accept-source-agreements >nul 2>&1
+if errorlevel 1 (
+  yt-dlp -U
+) else (
+  winget upgrade -e --id yt-dlp.yt-dlp --accept-source-agreements --accept-package-agreements
+)
+rem si falla (sin internet) seguimos: arranca con la version que ya tienes
 
 python app.py
 pause

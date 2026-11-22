@@ -1,5 +1,5 @@
 #!/bin/bash
-# Doble clic en Finder: revisa/instala Python, yt-dlp y ffmpeg con Homebrew y abre el descargador.
+# Doble clic en Finder: revisa/instala Python, yt-dlp y ffmpeg con Homebrew y abre Contenido a tu disco.
 cd "$(dirname "$0")"
 ok() { "$@" >/dev/null 2>&1; }
 
@@ -16,7 +16,7 @@ check python3 --version python
 check yt-dlp --version yt-dlp
 check ffmpeg -version ffmpeg
 
-echo "Actualizando yt-dlp (YouTube cambia seguido)..."
+echo "Actualizando yt-dlp (los sitios cambian seguido)..."
 if brew list yt-dlp >/dev/null 2>&1; then brew upgrade yt-dlp 2>/dev/null; else yt-dlp -U; fi
 
 python3 app.py

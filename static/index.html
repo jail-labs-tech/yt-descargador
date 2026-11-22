@@ -1,27 +1,29 @@
 <!doctype html><html lang="es"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<title>Descargador de YouTube</title>
+<title>Contenido a tu disco</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&display=swap">
 <link rel="stylesheet" href="/styles.css">
 <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <main>
-<div class="tag in"><b></b>Corre en tu equipo</div>
-<h1 class="in" style="--i:1">YouTube,<br><em>a tu disco.</em></h1>
-<p class="sub in" style="--i:2">Pega un enlace, elige audio o video y se guarda en tu equipo.</p>
+<div class="tag in"><b></b>Sin anuncios · Corre en tu equipo</div>
+<h1 class="in" style="--i:1">Contenido,<br><em>a tu disco.</em></h1>
+<p class="sub in" style="--i:2">Pega un enlace de YouTube, TikTok, Instagram, X y más de 1.800 sitios, elige audio o video y se guarda en tu equipo, sin anuncios.</p>
 <div class="dep" id="dep" role="alert" hidden></div>
 <form class="card in" id="f" style="--i:3" novalidate>
- <label for="u">Enlaces de video</label>
+ <label for="u">Enlaces</label>
  <div class="field">
-  <textarea id="u" rows="3" autocomplete="off" spellcheck="false" placeholder="Pega enlaces de videos o de listas de reproducción, uno por línea" autofocus></textarea>
+  <textarea id="u" rows="3" autocomplete="off" spellcheck="false" placeholder="Pega enlaces de cualquier sitio, uno por línea. En YouTube también sirven las listas de reproducción" autofocus></textarea>
   <button type="button" class="paste" id="p" aria-label="Pegar enlaces desde el portapapeles"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>Pegar</button>
  </div>
+ <button class="retry alt add" id="ad" type="submit" hidden><span id="adl">Agregar al mix</span></button>
  <fieldset>
   <legend>Formato</legend>
   <div class="seg">
    <label><input type="radio" name="fmt" value="mp3" checked><span class="tile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><b>MP3</b><small>Solo audio</small><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></span></label>
    <label><input type="radio" name="fmt" value="mp4"><span class="tile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 11h16v9H4z"/><path d="M3.5 6.8l16.2-2.9.8 4.4L4.3 11.2z"/><path d="M8.6 5.9l2.4 3.8M13.8 5l2.4 3.8"/></svg></span><b>MP4</b><small>Video con audio</small><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></span></label>
+   <label><input type="radio" name="fmt" value="mix"><span class="tile"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></span><b>Mix</b><small>Une canciones en un MP3</small><em class="cnt" id="mixc" hidden></em><span class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></span></label>
   </div>
  </fieldset>
  <fieldset class="qf">
@@ -29,8 +31,27 @@
   <div class="q" id="q"></div>
   <p class="hint" id="hint"></p>
  </fieldset>
+ <fieldset class="cut">
+  <legend>Recortar (opcional)</legend>
+  <div class="cuts">
+   <div><label for="c0">Desde</label><input id="c0" type="text" autocomplete="off" spellcheck="false" placeholder="0:00" aria-describedby="chint cerr"></div>
+   <div><label for="c1">Hasta</label><input id="c1" type="text" autocomplete="off" spellcheck="false" placeholder="Final" aria-describedby="chint cerr"></div>
+  </div>
+  <p class="hint" id="chint">Por ejemplo, de 0:00 a 0:10 para los primeros 10 segundos. En video el corte exacto tarda un poco más.</p>
+  <p class="hint err" id="cerr" hidden></p>
+ </fieldset>
+ <p class="hint mnote" id="mnote" hidden>MP3 a la máxima calidad. El recorte se hace pista por pista, en el panel de abajo.</p>
+ <fieldset class="mixp" id="mixp" tabindex="-1" hidden>
+  <legend>Pistas del mix <span class="mcount" id="mixcnt">0 pistas</span></legend>
+  <p class="hint" id="mixh">Recorte por pista (opcional): segundos, 1:30 o 1:02:05. Si Hasta queda vacío, llega al final.</p>
+  <p class="mixe" id="mixe">Aún no hay pistas. Pega enlaces arriba y pulsa «Agregar al mix».</p>
+  <ol class="mx" id="mxl"></ol>
+  <div class="xf"><label for="xf">Fundido entre pistas (segundos)</label><input id="xf" type="number" min="0" max="10" step="0.5" value="3" inputmode="decimal" aria-describedby="xfh xferr"><p class="hint" id="xfh">0 = pegadas, sin transición</p><p class="hint err" id="xferr" hidden></p></div>
+  <button class="go mk" id="mk" type="button" aria-describedby="mixst" disabled><span id="mkl">Crear mix (0 pistas)</span></button>
+  <p class="hint" id="mixst"></p>
+ </fieldset>
  <button class="go" id="g" type="submit"><span id="gl">Descargar</span><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg></button>
- <p class="hint" id="kb">Ctrl o Cmd + Enter para descargar. Cada enlace es una descarga independiente. Con una lista de reproducción eliges qué videos bajar.</p>
+ <p class="hint" id="kb">Ctrl o Cmd + Enter para descargar. Cada enlace es una descarga independiente. Con una lista de reproducción de YouTube eliges qué videos bajar.</p>
  <span class="sr" id="live" role="status" aria-live="polite"></span>
 </form>
 <section id="dls" hidden>
@@ -57,9 +78,17 @@
    <p class="note">Después cierra el descargador y vuelve a abrirlo.</p>
   </div>
  </details>
- <details id="bot"><summary>YouTube pide iniciar sesión o confirmar la edad</summary>
+ <details id="sitio"><summary>Ese sitio no es compatible</summary>
   <div class="hb">
-   <p>La app reintenta sola con las cookies del navegador donde abriste esta página, así que necesitas tener la sesión de YouTube iniciada ahí.</p>
+   <p>Funciona con más de 1.800 sitios. Mira la <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">lista completa</a>.</p>
+   <p>Los servicios con protección anticopia (DRM), como Netflix, Spotify, Disney+ o Prime Video, no se pueden descargar.</p>
+   <p>Si el sitio debería funcionar, conviene <a href="#actualizar">actualizar yt-dlp</a>.</p>
+  </div>
+ </details>
+ <details id="bot"><summary>El sitio pide iniciar sesión</summary>
+  <div class="hb">
+   <p>YouTube a veces pide confirmar que no eres un bot o tu edad, e Instagram, X o TikTok piden sesión para cierto contenido.</p>
+   <p>La app reintenta sola con las cookies del navegador donde abriste esta página, así que hay que tener la sesión iniciada en ese sitio y en ese navegador.</p>
    <p>Detecta Chrome, Edge, Firefox, Safari y Opera. Brave y otros navegadores se ven como Chrome y puede fallar, así que mejor abre esta página en uno de los detectados.</p>
   </div>
  </details>
@@ -80,6 +109,11 @@
    <div class="cmd"><span class="os">Mac</span><code>brew upgrade yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Mac: brew upgrade yt-dlp">Copiar</button></div>
    <div class="cmd"><span class="os">Windows</span><code>winget upgrade yt-dlp.yt-dlp</code><button type="button" class="cp" aria-label="Copiar comando para Windows: winget upgrade yt-dlp.yt-dlp">Copiar</button></div>
    <div class="cmd"><span class="os">Otros</span><code>yt-dlp -U</code><button type="button" class="cp" aria-label="Copiar comando para Otros: yt-dlp -U">Copiar</button></div>
+  </div>
+ </details>
+ <details id="anuncios"><summary>¿Por qué no tiene anuncios?</summary>
+  <div class="hb">
+   <p>Corre en tu equipo: no hay un servidor de nadie en medio y no se guarda nada. Además es código abierto.</p>
   </div>
  </details>
 </section>

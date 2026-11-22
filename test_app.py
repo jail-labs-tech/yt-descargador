@@ -1,6 +1,6 @@
 """Pruebas del descargador. Uso: python3 -m unittest -v
 Sin red: usan un yt-dlp falso. YT_REAL=1 agrega una descarga real de YouTube."""
-import http.client, json, os, shutil, socket, sys, tempfile, threading, time, unittest
+import http.client, json, os, shutil, socket, subprocess, sys, tempfile, threading, time, unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
@@ -27,6 +27,8 @@ if "--flat-playlist" in args:
     print(json.dumps(d)); sys.exit(0)
 out = os.path.dirname(args[args.index("-o") + 1])
 cookies = "--cookies-from-browser" in args
+if os.environ.get("FAKE_BAD") and os.environ["FAKE_BAD"] in args[-1]:
+    print("ERROR: [youtube] abc: Video unavailable"); sys.exit(1)
 if mode == "fail":
     print("ERROR: [youtube] abc: Video unavailable"); sys.exit(1)
 if mode == "botsiempre" or (mode == "bot" and not cookies):
@@ -37,10 +39,22 @@ ext = "mp3" if "-x" in args else "mp4"
 print(f"[download] Destination: {out}/{title}.f299.mp4", flush=True)
 print("PROG 50 100 NA 10 5", flush=True)
 print("PROG 100 NA 200 10 0", flush=True)
+if mode == "sinprog":
+    print("PROG NA NA NA NA NA", flush=True)
 if mode == "nofile":
     sys.exit(0)
 print(f'[Merger] Merging formats into "{out}/{title}.{ext}"', flush=True)
 open(os.path.join(out, f"{title}.{ext}"), "wb").write(b"datos " + ext.encode())
+'''
+
+FAKE_FFPROBE = r'''
+import os
+print(os.environ.get("FAKE_DUR", "10.0"))
+'''
+FAKE_FFMPEG = r'''
+import os, sys
+open(os.environ["FAKE_FFLOG"], "a", encoding="utf-8").write("\t".join(sys.argv[1:]) + "\n")
+open(sys.argv[-1], "wb").write(b"mix final")
 '''
 
 
@@ -93,11 +107,58 @@ class Validacion(unittest.TestCase):
                     "https://m.youtube.com/watch?v=x", "https://music.youtube.com/watch?v=x"]:
             self.assertIn(app.start(url, "mp3", "best"), app.JOBS, url)
 
-    def test_rechaza_otros_sitios_y_trucos(self):
-        for url in ["https://example.com", "ftp://youtube.com/x", "https://youtube.com.evil.com/x",
-                    "https://youtube.com@evil.com/x", "file:///etc/passwd", "--exec=rm", "", "youtube.com/watch"]:
-            with self.assertRaises(ValueError, msg=url):
+    def test_acepta_otros_sitios_http(self):
+        for url in ["https://example.com/v", "http://vimeo.com/1", "https://youtube.com.evil.com/x",
+                    "https://youtube.com@evil.com/x", "https://www.tiktok.com/@u/video/1",
+                    "https://x.com/channel/1", "https://soundcloud.com/playlist/x"]:  # reglas de YouTube solo en HOSTS
+            self.assertIn(app.start(url, "mp3", "best"), app.JOBS, url)
+
+    def test_rechaza_esquemas_y_trucos(self):
+        for url in ["ftp://youtube.com/x", "file:///etc/passwd", "data:text/plain,hola", "javascript:alert(1)",
+                    "http:///x", "https://", "--exec=rm", "", "youtube.com/watch", "example.com"]:
+            with self.assertRaisesRegex(ValueError, "enlace web", msg=url):
                 app.start(url, "mp3", "best")
+
+    def test_selector_mp4_cae_en_cualquier_formato(self):
+        self.assertTrue(app.mp4()[1].endswith("/bv*+ba/b"))
+        self.assertTrue(app.mp4(720)[1].endswith("/bv*[height<=720]+ba/b"))
+
+    def opts(self, fmt, cut):
+        with mock.patch.object(app.threading, "Thread") as t:
+            jid = app.start("https://vimeo.com/1", fmt, "best", None, cut)
+        return t.call_args.kwargs["args"][2], app.JOBS[jid]["cut"]
+
+    def test_sin_recorte_el_comando_no_cambia(self):
+        for cut in [None, (None, None), (None, None, ) ]:
+            self.assertEqual(self.opts("mp3", cut), (app.QUALITY["mp3"]["best"], None))
+        self.assertEqual(self.opts("mp4", (None, None)), (app.QUALITY["mp4"]["best"], None))
+
+    def test_recorte_mp3_y_mp4(self):
+        o, c = self.opts("mp3", (0, 10))
+        self.assertEqual((o, c), (app.AUDIO + app.QUALITY["mp3"]["best"] + ["--download-sections", "*0-10"], [None, 10]))
+        o, c = self.opts("mp4", (5, 10.5))
+        self.assertEqual(o, app.QUALITY["mp4"]["best"] + ["--download-sections", "*5-10.5", "--force-keyframes-at-cuts"])
+        self.assertEqual(c, [5, 10.5])
+
+    def test_recorte_solo_inicio_o_solo_fin(self):
+        self.assertEqual(self.opts("mp3", (12.5, None))[0][-2:], ["--download-sections", "*12.5-inf"])
+        self.assertEqual(self.opts("mp3", (12.5, None))[0][:2], ["-f", "ba[ext=m4a]/ba/b"])  # recorte exacto en MP3
+        self.assertEqual(self.opts("mp4", (12.5, None))[0].count("-f"), 1)  # mp4 conserva su selector
+        self.assertEqual(self.opts("mp3", (None, 30))[0][-2:], ["--download-sections", "*0-30"])
+        self.assertEqual(self.opts("mp4", (None, 30))[0][-3:], ["--download-sections", "*0-30", "--force-keyframes-at-cuts"])
+        self.assertEqual(self.opts("mp3", (0.0000001, 86400))[0][-1], "*0-86400")  # sin notación científica
+        self.assertEqual(self.opts("mp3", (86400, None))[0][-1], "*86400-inf")
+
+    def test_start_cero_sin_fin_no_es_recorte(self):
+        for cut in [(0, None), (0.0, None), (-0.0, None), (0.0004, None)]:
+            self.assertEqual(self.opts("mp4", cut), (app.QUALITY["mp4"]["best"], None), cut)
+        self.assertEqual(self.opts("mp3", (0, 10))[1], [None, 10])
+
+    def test_recorte_invalido(self):
+        for cut in [(None, 0), (None, -0.0), (0.0001, 0.0004), (0, 0.0004), (1, 1.0004), (None, 0.0004), (-1, 5), (5, 5), (10, 5), (0, 86401), (86401, None), ("5", 10), (None, "x"), (True, 10), (0, False),
+                    (float("nan"), 5), (0, float("inf")), (float("-inf"), 5), (10**400, None), ([1], None)]:
+            with self.assertRaisesRegex(ValueError, "Recorte inválido", msg=cut):
+                app.start("https://vimeo.com/1", "mp3", "best", None, cut)
 
     def test_rechaza_playlists_y_canales(self):
         for url in ["https://www.youtube.com/playlist?list=PL1", "https://www.youtube.com/@canal",
@@ -122,6 +183,64 @@ class Validacion(unittest.TestCase):
         self.assertEqual(app.QUALITY["mp3"]["320"][-1], "320K")
 
 
+class MixValidacion(unittest.TestCase):
+    def setUp(self):
+        p = mock.patch.object(app, "run_mix")  # no arrancar descargas
+        p.start()
+        self.addCleanup(p.stop)
+
+    def t(self, n=2, **k):
+        return [{"url": f"https://youtu.be/v{i}", "start": None, "end": None, **k} for i in range(n)]
+
+    def test_numero_de_pistas(self):
+        for tracks in [[], self.t(1), self.t(51), None, "x", {}]:
+            with self.assertRaisesRegex(ValueError, "2 a 50"):
+                app.mix(tracks, 0)
+        for n in (2, 50):
+            self.assertIn(app.mix(self.t(n), 0), app.JOBS)
+
+    def test_crossfade_invalido(self):
+        for cf in [-1, 10.5, 11, True, False, "2", None, float("nan"), float("inf"), 10**400, [1]]:
+            with self.assertRaisesRegex(ValueError, "Fundido inválido", msg=cf):
+                app.mix(self.t(), cf)
+        for cf in [0, 0.5, 10, 3]:
+            app.mix(self.t(), cf)
+
+    def test_pista_invalida_dice_cual(self):
+        casos = [("https://www.youtube.com/playlist?list=PL1", "Pista 1: Para listas"),
+                 ("https://www.youtube.com/@canal", "Pista 1: Pega el enlace de un video"),
+                 ("ftp://x.com/a", "Pista 1: Pega un enlace web"), (None, "Pista 1: Pega un enlace web")]
+        for url, msg in casos:
+            with self.assertRaisesRegex(ValueError, msg):
+                app.mix([{"url": url}, *self.t(1)], 0)
+        with self.assertRaisesRegex(ValueError, "Pista 1: Pista inválida"):
+            app.mix(["x", *self.t(1)], 0)
+        tracks = self.t(3)
+        tracks[1].update(start=10, end=5)
+        with self.assertRaisesRegex(ValueError, "^Pista 2: Recorte inválido$"):
+            app.mix(tracks, 0)
+
+    def test_job_inicial(self):
+        job = app.JOBS[app.mix(self.t(3), 1)]
+        self.assertEqual((job["format"], job["tracks"], job["track"], job["label"], job["state"]), ("mix", 3, 1, "En cola", "running"))
+
+
+class MixFiltro(unittest.TestCase):
+    pre = "[{i}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a{i}];"
+
+    def norm(self, n):
+        return "".join(self.pre.format(i=i) for i in range(n))
+
+    def test_con_fundido(self):
+        self.assertEqual(app.mix_filter(2, 2), self.norm(2) + "[a0][a1]acrossfade=d=2:c1=tri:c2=tri[out]")
+        self.assertEqual(app.mix_filter(3, 1.5), self.norm(3) + "[a0][a1]acrossfade=d=1.5:c1=tri:c2=tri[x1];"
+                         "[x1][a2]acrossfade=d=1.5:c1=tri:c2=tri[out]")
+
+    def test_sin_fundido(self):
+        self.assertEqual(app.mix_filter(2, 0), self.norm(2) + "[a0][a1]concat=n=2:v=0:a=1[out]")
+        self.assertEqual(app.mix_filter(3, 0), self.norm(3) + "[a0][a1][a2]concat=n=3:v=0:a=1[out]")
+
+
 class Utilidades(unittest.TestCase):
     def test_num(self):
         self.assertEqual(app.num("12.5"), 12.5)
@@ -133,11 +252,20 @@ class Utilidades(unittest.TestCase):
         self.assertEqual(app.label({**j, "part": 2}), "Descargando audio")
         self.assertEqual(app.label({**j, "stage": "convert"}), "Uniendo video y audio")
         self.assertEqual(app.label({**j, "format": "mp3", "stage": "convert"}), "Convirtiendo a MP3")
+        self.assertEqual(app.label({"format": "mix", "stage": "convert", "track": 2, "tracks": 3}), "Descargando pista 2 de 3")
 
 
 class Reintentos(unittest.TestCase):
     def job(self):
         return {"format": "mp4", "stage": "queue", "part": 0}
+
+    def test_el_comando_lleva_un_solo_elemento_y_el_doble_guion(self):
+        with mock.patch.object(app, "yt_dlp", return_value=None) as y:
+            job = self.job()
+            app.run(job, "https://vimeo.com/1", app.QUALITY["mp3"]["best"], tempfile.mkdtemp())
+        cmd = y.call_args[0][1]
+        self.assertEqual(cmd[-2:], ["--", "https://vimeo.com/1"])
+        self.assertEqual(cmd[cmd.index("--no-playlist") + 1:cmd.index("--no-playlist") + 3], ["--playlist-items", "1"])
 
     def test_reintenta_403_y_termina(self):
         calls = []
@@ -201,6 +329,17 @@ class Errores(unittest.TestCase):
                  ("ERROR: Failed to decrypt with DPAPI", "cookies", "cookies"),
                  ("ERROR: [Errno 1] Operation not permitted: '/Users/x/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'",
                   "cookies", "cookies"),
+                 ("ERROR: [Instagram] x: Requested content is not available, rate-limit reached or login required",
+                  "El sitio pide iniciar sesión", "bot"),
+                 ("ERROR: [vimeo] x: This video is only available for registered users. Use --cookies, --cookies-from-browser, "
+                  "--username and --password, --netrc-cmd, or --netrc (vimeo) to provide account credentials. See  "
+                  "https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies",
+                  "El sitio pide iniciar sesión", "bot"),
+                 ("ERROR: [twitter] x: NSFW tweet requires authentication. Use --cookies-from-browser or --cookies for the authentication.",
+                  "El sitio pide iniciar sesión", "bot"),
+                 ("ERROR: [facebook] x: You need to log in to access this content", "El sitio pide iniciar sesión", "bot"),
+                 ("ERROR: [x] Login required", "El sitio pide iniciar sesión", "bot"),
+                 ("ERROR: Unsupported URL: https://example.com/a", "Ese sitio no es compatible", "sitio"),
                  ("ERROR: HTTP Error 403: Forbidden", "actualizar yt-dlp", "actualizar"),
                  ("ERROR: algo raro de yt-dlp", "algo raro de yt-dlp", "actualizar"),
                  ("FileNotFoundError: yt-dlp", "Falta yt-dlp", "falta-ytdlp")]
@@ -274,6 +413,185 @@ class Cookies(FakeYtDlp):
         self.assertEqual(len(self.calls()), 1)
 
 
+class Mix(FakeYtDlp):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        for name, code in (("ffmpeg", FAKE_FFMPEG), ("ffprobe", FAKE_FFPROBE)):
+            Path(cls.dir, f"fake_{name}.py").write_text(code, encoding="utf-8")
+        cls.fflog = os.path.join(cls.dir, "ffmpeg.log")
+        cls.more = [mock.patch.object(app, "FFMPEG", [sys.executable, os.path.join(cls.dir, "fake_ffmpeg.py")]),
+                    mock.patch.object(app, "FFPROBE", [sys.executable, os.path.join(cls.dir, "fake_ffprobe.py")]),
+                    mock.patch.dict(os.environ, {"FAKE_FFLOG": cls.fflog})]
+        for p in cls.more:
+            p.start()
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), app.H)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+        for p in cls.more:
+            p.stop()
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+        if os.path.exists(self.fflog):
+            os.remove(self.fflog)
+
+    URLS = [f"https://youtu.be/v{i}" for i in range(3)]
+    ITEMS = [(URLS[0], None), (URLS[1], (2, 7)), (URLS[2], (None, 5))]
+
+    def run_mix(self, cf=1, items=None, out=None, **env):
+        class Job(dict):  # guarda cada estado intermedio
+            def update(self, **k):
+                super().update(**k)
+                seen.append(dict(self))
+
+        seen = []
+        job = Job(app.JOBS[app.new_job("mix", tracks=3, track=1)[0]])
+        with mock.patch.dict(os.environ, env):
+            app.run_mix(job, items or self.ITEMS, cf, out or tempfile.mkdtemp(dir=app.TMP.name))
+        return job, seen
+
+    def test_una_llamada_por_pista_con_sus_argumentos(self):
+        job, seen = self.run_mix()
+        self.assertEqual(job["state"], "done", job.get("error"))
+        c = self.calls()
+        self.assertEqual(len(c), 3)
+        for line, url in zip(c, self.URLS):
+            self.assertIn("-f ba[ext=m4a]/ba/b -x", line)
+            self.assertNotIn("--audio-format", line)
+            self.assertIn("--no-playlist --playlist-items 1", line)
+            self.assertTrue(line.endswith(f"-- {url}"), line)
+        self.assertNotIn("--download-sections", c[0])
+        self.assertIn("--download-sections *2-7", c[1])
+        self.assertIn("--download-sections *0-5", c[2])
+        self.assertEqual(len({line.split(" -o ")[1] for line in c}), 3)  # una subcarpeta por pista
+        labels = [s["label"] for s in seen]
+        for l in ("Descargando pista 1 de 3", "Descargando pista 2 de 3", "Descargando pista 3 de 3", "Uniendo pistas"):
+            self.assertIn(l, labels)
+        self.assertLess(labels.index("Descargando pista 2 de 3"), labels.index("Uniendo pistas"))
+        self.assertEqual((job["label"], job["name"], job["percent"]), ("Listo", "Mix (3 pistas).mp3", 100))
+        pcts = [s["percent"] for s in seen if s["state"] == "running" and s["percent"] is not None]
+        self.assertEqual(pcts, sorted(pcts))  # el avance total nunca retrocede
+        self.assertTrue(all(p <= 90 for p in pcts))
+        self.assertIsNone(next(s for s in seen if s["stage"] == "join")["percent"])  # barra indeterminada al unir
+
+    def test_ffmpeg_recibe_filtro_y_salida(self):
+        self.run_mix(cf=1)
+        args = Path(self.fflog).read_text(encoding="utf-8").strip().split("\t")
+        self.assertEqual(args.count("-i"), 3)
+        self.assertEqual(args[args.index("-filter_complex") + 1], app.mix_filter(3, 1))
+        self.assertEqual(args[args.index("-c:a") + 1:args.index("-c:a") + 5], ["libmp3lame", "-q:a", "0", args[-1]])
+        self.run_mix(cf=0)
+        self.assertIn("concat=n=3", Path(self.fflog).read_text(encoding="utf-8").splitlines()[-1])
+
+    def test_fundido_se_limita_a_la_mitad_de_la_pista_mas_corta(self):
+        self.run_mix(cf=10, FAKE_DUR="4")
+        args = Path(self.fflog).read_text(encoding="utf-8").strip().split("\t")
+        self.assertIn("acrossfade=d=2:", args[args.index("-filter_complex") + 1])
+
+    def test_error_en_pista_2(self):
+        out = tempfile.mkdtemp(dir=app.TMP.name)
+        job, _ = self.run_mix(out=out, FAKE_BAD="v1")
+        self.assertEqual((job["state"], job["error"]), ("error", "Pista 2: El video no está disponible (privado, borrado o bloqueado en tu país)"))
+        self.assertNotIn("help", job)
+        self.assertEqual(len(self.calls()), 2)  # la 3 ni se intenta
+        self.assertFalse(os.path.exists(self.fflog))
+        self.assertFalse(os.path.exists(out))
+
+    def test_excepcion_inesperada_marca_error_y_limpia(self):
+        out = tempfile.mkdtemp(dir=app.TMP.name)
+        with mock.patch.object(Path, "mkdir", side_effect=PermissionError("sin permiso")):
+            job, _ = self.run_mix(out=out)
+        self.assertEqual(job["state"], "error")
+        self.assertIn("sin permiso", job["error"])
+        self.assertFalse(os.path.exists(out))
+
+    def test_duracion_na_usa_el_fundido_pedido(self):
+        with mock.patch.dict(os.environ, {"FAKE_DUR": "N/A"}):
+            app.join(["a", "b"], 3, os.path.join(self.dir, "m.mp3"))
+        self.assertIn("acrossfade=d=3:", Path(self.fflog).read_text(encoding="utf-8"))
+
+    def test_sin_ytdlp_ni_ffmpeg(self):
+        with mock.patch.object(app, "YTDLP", ["yt-dlp-que-no-existe"]):
+            job, _ = self.run_mix()
+        self.assertEqual((job["error"], job["help"]), ("Pista 1: Falta yt-dlp en tu equipo", "falta-ytdlp"))
+        with mock.patch.object(app, "FFMPEG", ["ffmpeg-que-no-existe"]):
+            job, _ = self.run_mix(cf=0)
+        self.assertEqual((job["state"], job["error"], job["help"]), ("error", "Falta ffmpeg en tu equipo", "falta-ffmpeg"))
+
+    def test_ocupa_un_solo_cupo(self):
+        slots = mock.MagicMock()
+        with mock.patch.object(app, "SLOTS", slots):
+            job, _ = self.run_mix()
+        self.assertEqual(job["state"], "done")
+        self.assertEqual((slots.acquire.call_count, slots.release.call_count), (1, 1))
+
+    def test_reintenta_403_por_pista(self):
+        n = []
+
+        def fake(job, cmd):
+            n.append(cmd)
+            if len(n) == 1:
+                return "ERROR: HTTP Error 403: Forbidden"
+            Path(cmd[cmd.index("-o") + 1]).parent.joinpath("a.m4a").write_bytes(b"x")
+
+        with mock.patch.object(app, "yt_dlp", fake):
+            job, _ = self.run_mix(items=[(self.URLS[0], None), (self.URLS[1], None)])
+        self.assertEqual((job["state"], len(n)), ("done", 3))
+
+
+    def post(self, body, headers=None):
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        c.request("POST", "/mix", body=json.dumps(body), headers={"Host": f"127.0.0.1:{self.port}", **(headers or {})})
+        r = c.getresponse()
+        body = r.read()
+        return r.status, json.loads(body) if r.status == 200 else body
+
+    def test_validaciones_http(self):
+        ok = [{"url": "https://youtu.be/a"}, {"url": "https://youtu.be/b"}]
+        for body, err in [({"tracks": ok[:1], "crossfade": 0}, "2 a 50"), ({"tracks": ok * 26, "crossfade": 0}, "2 a 50"),
+                          ({"tracks": ok, "crossfade": 11}, "Fundido inválido"), ({"tracks": ok, "crossfade": True}, "Fundido inválido"),
+                          ({"tracks": [ok[0], {"url": "https://www.youtube.com/playlist?list=PL1"}], "crossfade": 0}, "Pista 2: Para listas"),
+                          ({"tracks": [ok[0], {**ok[1], "start": 9, "end": 3}], "crossfade": 0}, "Pista 2: Recorte inválido")]:
+            s, res = self.post(body)
+            self.assertEqual((s, res["ok"]), (200, False), body)
+            self.assertIn(err, res["error"])
+        self.assertEqual(self.calls(), [])
+
+    def test_bloquea_otros_sitios(self):
+        self.assertEqual(self.post({"tracks": [], "crossfade": 0}, {"Origin": "https://evil.com"})[0], 403)
+
+    def test_flujo_completo_y_archivo_de_un_solo_uso(self):
+        tracks = [{"url": u, "start": s, "end": e} for u, (s, e) in zip(self.URLS, [(None, None), (2, 7), (0, 5)])]
+        s, res = self.post({"tracks": tracks, "crossfade": 1})
+        self.assertTrue(res["ok"], res)
+        jid = res["id"]
+        wait(jid)
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        c.request("GET", f"/status/{jid}", headers={"Host": f"127.0.0.1:{self.port}"})
+        st = json.loads(c.getresponse().read())
+        self.assertEqual((st["state"], st["format"], st["tracks"], st["name"], st["percent"]), ("done", "mix", 3, "Mix (3 pistas).mp3", 100))
+        self.assertNotIn("file", st)
+        folder = Path(app.JOBS[jid]["file"]).parent
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        c.request("GET", f"/file/{jid}", headers={"Host": f"127.0.0.1:{self.port}"})
+        r = c.getresponse()
+        self.assertEqual((r.status, r.read()), (200, b"mix final"))
+        for _ in range(50):
+            if not folder.exists():
+                break
+            time.sleep(0.02)
+        self.assertFalse(folder.exists())
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        c.request("GET", f"/file/{jid}", headers={"Host": f"127.0.0.1:{self.port}"})
+        self.assertEqual(c.getresponse().status, 404)
+
+
 class PuertoOcupado(unittest.TestCase):
     def test_avisa_abre_el_navegador_y_sale(self):
         with socket.socket() as s:
@@ -283,7 +601,7 @@ class PuertoOcupado(unittest.TestCase):
                     mock.patch("builtins.print") as pr:
                 app.main()
         op.assert_called_once()
-        self.assertIn("Ya está abierto", pr.call_args[0][0])
+        self.assertIn("Contenido a tu disco ya está abierto", pr.call_args[0][0])
 
 
 class Progreso(FakeYtDlp):
@@ -305,6 +623,13 @@ class Progreso(FakeYtDlp):
         self.assertEqual(last_dl["total"], 200)  # usa total_bytes_estimate cuando total es NA
         self.assertEqual((job["stage"], job["percent"], job["label"]), ("convert", None, "Uniendo video y audio"))
         shutil.rmtree(out)
+
+    def test_sin_porcentaje_no_rompe(self):  # con --download-sections yt-dlp usa ffmpeg y puede no dar progreso
+        job = {"format": "mp3", "stage": "start", "part": 0}
+        with mock.patch.dict(os.environ, {"FAKE_MODE": "sinprog"}):
+            self.assertIsNone(app.yt_dlp(job, [*app.YTDLP, "-o", f"{tempfile.mkdtemp()}/%(title)s.%(ext)s", "--", "u"]))
+        self.assertEqual(job["percent"], None)  # tras convertir; antes fue 0 sin total
+        self.assertIsNone(job["total"])
 
     def test_devuelve_error_de_ytdlp(self):
         with mock.patch.dict(os.environ, {"FAKE_MODE": "fail"}):
@@ -494,9 +819,25 @@ class Servidor(FakeYtDlp):
         self.assertEqual(self.req("GET", "/status/nope")[0], 404)
         self.assertEqual(self.req("GET", "/file/nope")[0], 404)
         self.assertEqual(self.req("POST", "/otra", {})[0], 404)
-        for body in ["no es json", {"url": "https://evil.com", "format": "mp3"}]:
+        for body in ["no es json", {"url": "ftp://evil.com", "format": "mp3"},
+                     {"url": "https://youtu.be/x", "format": "mp3", "start": -1},
+                     '{"url": "https://youtu.be/x", "format": "mp3", "start": NaN}',
+                     '{"url": "https://youtu.be/x", "format": "mp3", "end": Infinity}']:
             s, _, b = self.req("POST", "/download", body)
             self.assertFalse(json.loads(b)["ok"])
+        s, _, b = self.req("POST", "/download", {"url": "https://youtu.be/x", "format": "mp3", "start": 5, "end": 2})
+        self.assertEqual(json.loads(b), {"ok": False, "error": "Recorte inválido"})
+
+    def test_recorte_llega_al_status_y_al_comando(self):
+        s, _, b = self.req("POST", "/download", {"url": "https://youtu.be/x", "format": "mp3", "start": 1, "end": 2.5})
+        jid = json.loads(b)["id"]
+        wait(jid)
+        self.assertEqual(json.loads(self.req("GET", f"/status/{jid}")[2])["cut"], [1, 2.5])
+        self.assertIn("--download-sections *1-2.5", self.calls()[-1])
+        jid = self.download()
+        wait(jid)
+        self.assertIsNone(json.loads(self.req("GET", f"/status/{jid}")[2])["cut"])
+        self.assertNotIn("--download-sections", self.calls()[-1])
 
     def test_bloquea_otros_sitios(self):
         good = {"url": "https://youtu.be/x", "format": "mp3"}
@@ -516,6 +857,21 @@ class Real(unittest.TestCase):
             st = wait(jid, timeout=180)
             self.assertEqual(st["state"], "done", st.get("error"))
             self.assertGreater(os.path.getsize(st["file"]), 10_000)
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "falta ffmpeg")
+    def test_recortes_y_mix_reales(self):
+        def dur(f):
+            return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f],
+                                        capture_output=True, text=True).stdout)
+
+        url = "https://youtu.be/jNQXAC9IVRw"
+        st = wait(app.start(url, "mp3", "best", None, (2, 7)), timeout=180)
+        self.assertEqual(st["state"], "done", st.get("error"))
+        self.assertAlmostEqual(dur(st["file"]), 5, delta=1)  # sin -f m4a salían ~10 s de más
+        jid = app.mix([{"url": url, "start": 2, "end": 7}, {"url": url, "start": 10, "end": 15}], 1)
+        st = wait(jid, timeout=240)
+        self.assertEqual(st["state"], "done", st.get("error"))
+        self.assertAlmostEqual(dur(st["file"]), 9, delta=1.5)  # 5 + 5 - 1 s de fundido
 
 
 if __name__ == "__main__":
