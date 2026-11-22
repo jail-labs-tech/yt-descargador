@@ -41,8 +41,8 @@ jobs:
           test "$(cat "$CTD_HOME/descargador.log")" = hola || fail "se perdio descargador.log"
           test -f "$CTD_HOME/app.py" || fail "falta app.py tras actualizar"
           # guardas: carpeta ajena, HOME/ y HOME/. no se tocan ni al instalar ni al desinstalar
-          touch "$t/other/keep" "$HOME/keep"
-          for h in "$t/other" "$HOME/" "$HOME/."; do
+          touch "$t/other/keep" "$t/other/app.py" "$HOME/keep"  # app.py ajeno: sin marcador no se toca
+          for h in "$t/other" "$HOME/" "$HOME/." "$HOME/noexiste/.."; do
             for a in "" "--uninstall"; do
               if CTD_HOME="$h" sh -s -- $a < install.sh; then fail "debio rechazar CTD_HOME=$h $a"; fi
               test -f "$t/other/keep" && test -f "$HOME/keep" || fail "se borro algo con CTD_HOME=$h $a"
@@ -86,8 +86,8 @@ jobs:
           if (-not (Test-Path "$t\home\app.py")) { Fail 'falta app.py tras actualizar' }
           # guardas: carpeta ajena y carpeta personal no se tocan
           New-Item -ItemType Directory -Force -Path "$t\other" | Out-Null
-          Set-Content "$t\other\keep" 'x'; Set-Content "$env:USERPROFILE\ctd-keep.txt" 'x'
-          foreach ($h in @("$t\other", $env:USERPROFILE, "$env:USERPROFILE\")) {
+          Set-Content "$t\other\keep" 'x'; Set-Content "$t\other\app.py" 'x'; Set-Content "$env:USERPROFILE\ctd-keep.txt" 'x'
+          foreach ($h in @("$t\other", $env:USERPROFILE, "$env:USERPROFILE\", "$env:USERPROFILE\noexiste\..")) {
             $env:CTD_HOME = $h
             if ((Run 'install.ps1') -eq 0) { Fail "install debio rechazar $h" }
             if ((Run 'uninstall.ps1') -eq 0) { Fail "uninstall debio rechazar $h" }

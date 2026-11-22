@@ -30,19 +30,22 @@ main() {
   die()  { printf '\n✗ %s\n' "$*" >&2; exit 1; }
   have() { "$@" >/dev/null 2>&1; }
   # texto entre comillas simples, seguro para meter en un script generado
+  MARK=.ctd-instalacion  # marcador: solo borramos carpetas que lo tengan
   q()    { e=$(printf '%s' "$1" | sed "s/'/'\\\\''/g"); printf "'%s'" "$e"; }
 
-  # Guardas: solo se borra una carpeta que ya sea una instalacion nuestra (tiene app.py)
-  # o que no exista / este vacia. Nunca "/" ni el HOME, aunque lleguen como "$HOME/" o "$HOME/.".
+  # Guardas: solo se borra una carpeta marcada como instalacion nuestra (.ctd-instalacion)
+  # o que este vacia. Nunca "/" ni el HOME, aunque lleguen como "$HOME/", "$HOME/." o "$HOME/x/..".
   [ -n "$DEST" ] || die "CTD_HOME esta vacio."
+  # crear antes de resolver: asi "x/.." se resuelve a la ruta real antes de compararla
+  [ "${1:-}" = "--uninstall" ] || mkdir -p "$DEST" || die "No puedo crear $DEST"
   if [ -d "$DEST" ]; then
     R=$(cd "$DEST" && pwd -P) || die "No puedo entrar a $DEST"
     HR=$(cd "$HOME" && pwd -P) || HR=$HOME
     case "$R" in /|"$HR") die "Ruta de instalacion no segura: $DEST ($R). No borre nada." ;; esac
     DEST=$R
-    if [ ! -f "$DEST/app.py" ]; then
+    if [ ! -f "$DEST/$MARK" ]; then
       if [ "${1:-}" = "--uninstall" ] || [ -n "$(ls -A "$DEST")" ]; then
-        die "$DEST no parece una instalacion de Contenido a tu disco (no tiene app.py). No borre nada."
+        die "$DEST no parece una instalacion de Contenido a tu disco (falta $MARK). No borre nada."
       fi
     fi
   fi
@@ -91,10 +94,11 @@ main() {
     say "   ! La app parece estar abierta. Cierrala (cierra su ventana de Terminal) y vuelve a abrirla despues para usar la version nueva."
   fi
   mkdir -p "$DEST"
-  find "$DEST" -mindepth 1 -maxdepth 1 ! -name descargador.log -exec rm -rf {} +
+  find "$DEST" -mindepth 1 -maxdepth 1 ! -name descargador.log ! -name "$MARK" -exec rm -rf {} +
   rm -f "$TMP/x/descargador.log"
   cp -R "$TMP/x/." "$DEST/"
   chmod +x "$DEST/iniciar-mac.command" 2>/dev/null || true
+  : > "$DEST/$MARK"
   [ -f "$DEST/app.py" ] && [ -d "$DEST/static" ] ||
     die "La copia fallo: no encuentro app.py y static en $DEST. Vuelve a pegar el comando."
   good "Archivos listos"

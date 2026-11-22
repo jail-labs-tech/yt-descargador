@@ -9,8 +9,8 @@ $global:LASTEXITCODE = 0
     $root = [IO.Path]::GetPathRoot($Dest).TrimEnd('\')
     if ($Dest -eq '' -or $Dest -ieq $root -or $Dest -ieq $env:USERPROFILE.TrimEnd('\')) { throw "Ruta no segura: $Dest. No borre nada." }
     $Existe = Test-Path -LiteralPath $Dest
-    if ($Existe -and -not (Test-Path -LiteralPath (Join-Path $Dest 'app.py'))) {
-      throw "$Dest no parece una instalacion de Contenido a tu disco (no tiene app.py). No borre nada."
+    if ($Existe -and -not (Test-Path -LiteralPath (Join-Path $Dest '.ctd-instalacion'))) {
+      throw "$Dest no parece una instalacion de Contenido a tu disco (falta .ctd-instalacion). No borre nada."
     }
     Write-Host 'Desinstalando Contenido a tu disco...'
     $lnks = @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs')) | ForEach-Object { Join-Path $_ 'Contenido a tu disco.lnk' }

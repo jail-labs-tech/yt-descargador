@@ -56,11 +56,11 @@ $global:LASTEXITCODE = 0
     $Dest = Get-SafePath $(if ($env:CTD_HOME) { $env:CTD_HOME } else { Join-Path $env:LOCALAPPDATA 'ContenidoATuDisco' })
     $Bat = Join-Path $Dest 'iniciar-windows.bat'
     $Lnk = 'Contenido a tu disco.lnk'
-    # solo se vacia una carpeta que no existe, esta vacia o ya es una instalacion nuestra (tiene app.py)
+    # solo se vacia una carpeta que no existe, esta vacia o tiene nuestro marcador .ctd-instalacion
     $Existe = Test-Path -LiteralPath $Dest
-    $Nuestra = Test-Path -LiteralPath (Join-Path $Dest 'app.py')
+    $Nuestra = Test-Path -LiteralPath (Join-Path $Dest '.ctd-instalacion')
     if ($Existe -and -not $Nuestra -and (Get-ChildItem -LiteralPath $Dest -Force | Select-Object -First 1)) {
-      throw "$Dest ya existe y no parece una instalacion de Contenido a tu disco (no tiene app.py). No borre nada."
+      throw "$Dest ya existe y no parece una instalacion de Contenido a tu disco (falta .ctd-instalacion). No borre nada."
     }
 
     Write-Host ''
@@ -110,9 +110,10 @@ $global:LASTEXITCODE = 0
     Write-Host "3. Instalando en $Dest"
     if ($Nuestra) { Write-Host '   Si la app esta abierta, cierra su ventana negra antes de actualizar (si no, seguira la version vieja).' }
     if (-not $Existe) { New-Item -ItemType Directory -Path $Dest | Out-Null }
-    Get-ChildItem -LiteralPath $Dest -Force | Where-Object { $_.Name -ne 'descargador.log' } | Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $Dest -Force | Where-Object { $_.Name -ne 'descargador.log' -and $_.Name -ne '.ctd-instalacion' } | Remove-Item -Recurse -Force
     Remove-Item -LiteralPath (Join-Path $Root.FullName 'descargador.log') -Force -ErrorAction SilentlyContinue
     Get-ChildItem -LiteralPath $Root.FullName -Force | Copy-Item -Destination $Dest -Recurse -Force
+    New-Item -ItemType File -Force -Path (Join-Path $Dest '.ctd-instalacion') | Out-Null
     if (-not (Test-Path -LiteralPath (Join-Path $Dest 'app.py')) -or -not (Test-Path -LiteralPath (Join-Path $Dest 'static'))) {
       throw "La copia fallo: no encuentro app.py y static en $Dest. Vuelve a pegar el comando."
     }
